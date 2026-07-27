@@ -10,12 +10,31 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0",
-            "com.codeborne:selenide:7.16.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+    testImplementation("com.codeborne:selenide:7.16.2")
+    testImplementation("org.apache.commons:commons-lang3:3.20.0")
 }
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
 test {
     useJUnitPlatform()
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+        showStandardStreams = true
+        exceptionFormat 'full'
+    }
 }
+
+tasks.register('message') {
+    group = 'verification'
+    description = 'Выводит сообщение после запуска тестов'
+    dependsOn test
+
+    doLast {
+        println 'Test run is over'
+    }
+}
+
+
+

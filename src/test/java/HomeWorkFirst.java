@@ -78,7 +78,7 @@ public class HomeWorkFirst {
     // Сравнение можно выполнять без учёта регистра.
     public static boolean hasBug(String[] messages){
         for (String message:messages){
-            if(message.equals("Bug")){
+            if(message.equalsIgnoreCase("Bug")){
                 return true;
             }
         }
