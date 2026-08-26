@@ -5,10 +5,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,7 +30,7 @@ public class HomeWorkFirstTest {
     void testIsEven() {
         Random random = new Random();
         int number = random.nextInt(1, 100);
-        boolean expectedResult = true;
+        boolean expectedResult = number % 2 == 0;
         boolean actualityResult = HomeWorkFirst.isEven(number);
         assertThat(actualityResult)
                 .as("Число нечётное")
@@ -47,7 +44,7 @@ public class HomeWorkFirstTest {
     void testCheckAccess() {
         Random random = new Random();
         int age = random.nextInt(0, 99);
-        String expectedResult = "Allowed";
+        String expectedResult = age > 18 ? "Allowed" : "Denied";
         String actualityResult = HomeWorkFirst.checkAccess(age);
         assertThat(actualityResult)
                 .as("Возраст меньше 18")
@@ -62,8 +59,8 @@ public class HomeWorkFirstTest {
     void testIsPositive() {
         Random random = new Random();
         int num = random.nextInt();
-        boolean expectedResult = true;
-        boolean actualityResult = HomeWorkFirst.isEven(num);
+        boolean expectedResult = num>=0;
+        boolean actualityResult = HomeWorkFirst.isPositive(num);
         assertThat(actualityResult)
                 .as("Число меньше 0")
                 .isEqualTo(expectedResult);
@@ -91,7 +88,18 @@ public class HomeWorkFirstTest {
             "61–80: B;" +
             "81–100: A")
     void testGetGrade(int value) {
-        String expectedResult = "B";
+        String expectedResult;
+        if (value >= 0 && value <= 20) {
+            expectedResult = "E";
+        } else if (value <= 40) {
+            expectedResult = "D";
+        } else if (value <= 60) {
+            expectedResult = "C";
+        } else if (value <= 80) {
+            expectedResult = "B";
+        } else {
+            expectedResult = "A";
+        }
         String actualityResult = HomeWorkFirst.getGrade(value);
         assertThat(actualityResult)
                 .as("Оценка ниже ожидаемой")
@@ -106,11 +114,19 @@ public class HomeWorkFirstTest {
     void testBlastOff() {
         Random random = new Random();
         int start = random.nextInt(0, 10);
-        String expectedResult = "5 4 3 2 1 Поехали!";
+        StringBuilder expectedResult = new StringBuilder();
+        for (int i = start; i >= 1; i--) {
+            expectedResult.append(i);
+
+            if (i >= 1) {
+                expectedResult.append(" ");
+            }
+        }
+        expectedResult.append("Поехали!");
         String actualityResult = HomeWorkFirst.blastOff(start);
         assertThat(actualityResult)
                 .as("Результат выполнения метода не соответствует ОР")
-                .isEqualTo(expectedResult);
+                .isEqualTo(expectedResult.toString());
     }
 
     @RepeatedTest(10)
@@ -120,7 +136,10 @@ public class HomeWorkFirstTest {
     void testSumToN() {
         Random random = new Random();
         int number = random.nextInt(15);
-        int expectedResult = 36;
+        int expectedResult = 0;
+        for (int i = 1; i <= number; i++) {
+            expectedResult += i;
+        }
         int actualityResult = HomeWorkFirst.sumToN(number);
         assertThat(actualityResult)
                 .as("Сумма всех числе не соответствует ОР")
@@ -139,7 +158,8 @@ public class HomeWorkFirstTest {
         for (int i = 0; i < arrLength; i++) {
             arrMessages[i] = RandomStringUtils.insecure().next(5);
         }
-        boolean expectedResult = false;
+        boolean expectedResult = Arrays.stream(arrMessages)
+                .anyMatch(message -> message.equalsIgnoreCase("Bug"));
         boolean actualityResult = HomeWorkFirst.hasBug(arrMessages);
         assertThat(actualityResult)
                 .as("Массив содержит строку Bug")
@@ -156,11 +176,21 @@ public class HomeWorkFirstTest {
         Random random = new Random();
         int start = random.nextInt(10);
         int end = random.nextInt(20);
-        String expectedResult = "2 4 6 8 10";
+        StringBuilder expectedResult = new StringBuilder();
+
+        for (int i = start; i <= end; i++) {
+            if (i % 2 == 0) {
+                if (expectedResult.length() > 0) {
+                    expectedResult.append(" ");
+                }
+
+                expectedResult.append(i);
+            }
+        }
         String actualityResult = HomeWorkFirst.getEvenInRange(start, end);
         assertThat(actualityResult)
                 .as("Фактическая строка не соответствует ОР")
-                .isEqualTo(expectedResult);
+                .isEqualTo(expectedResult.toString());
     }
 
     @Test
@@ -174,7 +204,12 @@ public class HomeWorkFirstTest {
         for (int i = 0; i < lengthArr; i++) {
             numbers[i] = random.nextInt(30);
         }
-        int expectedResult = 30;
+        int expectedResult = numbers[0];
+        for (int number : numbers) {
+            if (number > expectedResult) {
+                expectedResult = number;
+            }
+        }
         int actualityResult = HomeWorkFirst.findMax(numbers);
         assertThat(actualityResult)
                 .as("В массиве отсутствует ожидаемое число")
@@ -206,7 +241,11 @@ public class HomeWorkFirstTest {
         for (int i = 0; i <= lengthList; i++) {
             numbers.add(random.nextInt(10));
         }
-        int expectedResult = 12;
+        Integer expectedResult = (int) numbers.stream()
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0.0);
+
         int actualityResult = HomeWorkFirst.calcAverage(numbers);
         assertThat(actualityResult)
                 .as("Среднее арифметическое не соответствует ОР")
