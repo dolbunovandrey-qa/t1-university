@@ -25,7 +25,7 @@ public class HomeWorkFirstTest {
     void testIsEven(){
         Random random = new Random();
         int number = random.nextInt(1,100);
-        boolean expectedResult = true;
+        boolean expectedResult = number % 2 == 0;
         boolean actualityResult = HomeWorkFirst.isEven(number);
         if(actualityResult == expectedResult){
             System.out.println("TEST PASSED");
@@ -39,7 +39,7 @@ public class HomeWorkFirstTest {
     void testCheckAccess(){
         Random random = new Random();
         int age = random.nextInt(0,99);
-        String expectedResult = "Allowed";
+        String expectedResult = age > 18 ? "Allowed" : "Denied";
         String actualityResult = HomeWorkFirst.checkAccess(age);
         if(actualityResult.equals(expectedResult)){
             System.out.println("TEST PASSED");
@@ -54,8 +54,8 @@ public class HomeWorkFirstTest {
     void testIsPositive(){
         Random random = new Random();
         int num = random.nextInt();
-        boolean expectedResult = true;
-        boolean actualityResult = HomeWorkFirst.isEven(num);
+        boolean expectedResult = num >= 0;
+        boolean actualityResult = HomeWorkFirst.isPositive(num);
         if(actualityResult == expectedResult){
             System.out.println("TEST PASSED");
         } else {
@@ -82,7 +82,19 @@ public class HomeWorkFirstTest {
             "61–80: B;" +
             "81–100: A")
     void testGetGrade(int value){
-        String expectedResult = "B";
+        String expectedResult;
+
+        if (value >= 0 && value <= 20) {
+            expectedResult = "E";
+        } else if (value <= 40) {
+            expectedResult = "D";
+        } else if (value <= 60) {
+            expectedResult = "C";
+        } else if (value <= 80) {
+            expectedResult = "B";
+        } else {
+            expectedResult = "A";
+        }
         String actualityResult = HomeWorkFirst.getGrade(value);
         if (actualityResult.equals(expectedResult)){
             System.out.println("TEST PASSED");
@@ -97,10 +109,17 @@ public class HomeWorkFirstTest {
     void testBlastOff(){
         Random random = new Random();
         int start = random.nextInt(0,10);
-        String expectedResult = "5 4 3 2 1 Поехали!";
+        StringBuilder expectedResult = new StringBuilder();
+        for (int i = start; i >= 1; i--) {
+            expectedResult.append(i);
+
+            if (i >= 1) {
+                expectedResult.append(" ");
+            }
+        }
+        expectedResult.append("Поехали!");
         String actualityResult = HomeWorkFirst.blastOff(start);
-        System.out.println(actualityResult);
-        if (actualityResult.equals(expectedResult)){
+        if (actualityResult.equals(expectedResult.toString())){
             System.out.println("TEST PASSED");
         } else {
             System.out.println("TEST FAILED");
@@ -112,7 +131,10 @@ public class HomeWorkFirstTest {
     void testSumToN(){
         Random random = new Random();
         int number = random.nextInt(15);
-        int expectedResult = 36;
+        int expectedResult = 0;
+        for (int i = 1; i <= number; i++) {
+            expectedResult += i;
+        }
         int actualityResult = HomeWorkFirst.sumToN(number);
         if (actualityResult==expectedResult){
             System.out.println("TEST PASSED");
@@ -149,10 +171,19 @@ public class HomeWorkFirstTest {
         Random random = new Random();
         int start = random.nextInt(10);
         int end = random.nextInt(20);
-        String expectedResult = "2 4 6 8 10";
+        StringBuilder expectedResult = new StringBuilder();
+        for (int i = start; i <= end; i++) {
+            if (i % 2 == 0) {
+                if (expectedResult.length() > 0) {
+                    expectedResult.append(" ");
+                }
+
+                expectedResult.append(i);
+            }
+        }
         String actualityResult = HomeWorkFirst.getEvenInRange(start,end);
         System.out.println(actualityResult);
-        if (actualityResult.equals(expectedResult)){
+        if (actualityResult.equals(expectedResult.toString())){
             System.out.println("TEST PASSED");
         } else {
             System.out.println("TEST FAILED");
@@ -168,7 +199,12 @@ public class HomeWorkFirstTest {
         for (int i = 0; i<lengthArr;i++){
             numbers[i]= random.nextInt(30);
         }
-        int expectedResult = 30;
+        int expectedResult = numbers[0];
+        for (int number : numbers) {
+            if (number > expectedResult) {
+                expectedResult = number;
+            }
+        }
         int actualityResult = HomeWorkFirst.findMax(numbers);
         if (actualityResult == expectedResult){
             System.out.println("TEST PASSED");
@@ -201,7 +237,10 @@ public class HomeWorkFirstTest {
         for (int i = 0;i<=lengthList;i++){
             numbers.add(random.nextInt(10));
         }
-        int expectedResult = 12;
+        int expectedResult = (int) numbers.stream()
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0);
         int actualityResult = HomeWorkFirst.calcAverage(numbers);
         System.out.println(actualityResult);
         if (actualityResult == expectedResult){
