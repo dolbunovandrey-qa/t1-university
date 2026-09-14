@@ -28,7 +28,7 @@ test {
     testLogging {
         events 'passed', 'failed', 'skipped'
         showStandardStreams = true
-        exceptionFormat 'full'
+        exceptionFormat = 'full'
     }
 }
 
@@ -42,5 +42,17 @@ tasks.register('message') {
     }
 }
 
+tasks.register('runApiTests', Test) {
+    group = 'verification'
+    description = 'Запускает все API-тесты'
+    useJUnitPlatform {
+        includeTags 'api'
+    }
 
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+        showStandardStreams = true
+        exceptionFormat = 'full'
+    }
+}
 
