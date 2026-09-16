@@ -1,35 +1,29 @@
 package ui.selenium;
 
-import com.github.javafaker.Faker;
+import config.BaseTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 import java.util.List;
-import java.util.Locale;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class SeleniumTestTwo {
-    WebDriver driver;
-    private Faker faker = new Faker(Locale.forLanguageTag("ru"));
-    String name = faker.commerce().productName();
-    double price = faker.number().randomDouble(2, 0, 1000);
+public class SeleniumTestTwo extends BaseTest {
+    private String name = CONFIG.getStartProductName();
+    private double price = CONFIG.getStartProductPrice();
     record Good(String name, double price){};
-    int id;
     @BeforeEach
     void setup(){
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(), CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
                 .body(new Good(name, price))
@@ -41,9 +35,9 @@ public class SeleniumTestTwo {
         assertThat(responsePost.statusCode())
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
-        id = responsePost.jsonPath().getInt("data.id");
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
         driver = new ChromeDriver();
-        driver.get("http://localhost:8080");
+        driver.get(CONFIG.getWebUrl());
     }
     @Test
     @DisplayName("Добавить товар в корзину и проверить, что он отображается.")
@@ -63,18 +57,5 @@ public class SeleniumTestTwo {
                 .as("нет товара с именем "+ name)
                 .isNotEmpty();
 
-    }
-    @AfterEach
-    void tearDown(){
-        driver.quit();
-        given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
-                .pathParam("id",id)
-                .log().all()
-                .when()
-                .delete("/goods/{id}")
-                .then()
-                .log().all();
     }
 }

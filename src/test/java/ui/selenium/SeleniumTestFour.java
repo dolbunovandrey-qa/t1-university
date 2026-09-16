@@ -1,6 +1,7 @@
 package ui.selenium;
 
 import com.github.javafaker.Faker;
+import config.BaseTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.AfterEach;
@@ -18,19 +19,18 @@ import java.util.Locale;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class SeleniumTestFour {
+public class SeleniumTestFour extends BaseTest {
+    private String name = CONFIG.getStartProductName();
+    private double price = CONFIG.getStartProductPrice();
 
-    WebDriver driver;
-    private Faker faker = new Faker(Locale.forLanguageTag("ru"));
-    String name = faker.commerce().productName();
-    double price = faker.number().randomDouble(2, 0, 1000);
-    record Good(String name, double price){};
-    int id;
+    record Good(String name, double price) {
+    }
+
     @BeforeEach
-    void setup(){
+    void setup() {
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(), CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
                 .body(new Good(name, price))
@@ -42,13 +42,14 @@ public class SeleniumTestFour {
         assertThat(responsePost.statusCode())
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
-        id = responsePost.jsonPath().getInt("data.id");
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
         driver = new ChromeDriver();
-        driver.get("http://localhost:8080");
+        driver.get(CONFIG.getWebUrl());
     }
+
     @Test
     @DisplayName("Проверить сохранение товаров в корзине после обновления страницы.")
-    void checkCartItemsAfterReload(){
+    void checkCartItemsAfterReload() {
         driver.findElement(By.cssSelector("[data-action='add-to-cart'][data-name='" + name + "']")).click();
         List<WebElement> toast = driver.findElements(By.cssSelector("[datatest='notification-container']"));
         assertThat(toast)
@@ -61,18 +62,5 @@ public class SeleniumTestFour {
         assertThat(driver.findElement(By.id("cart-count")).getText())
                 .as("Товар в корзине должен оставаться после рефреша")
                 .isNotEqualTo("0");
-    }
-    @AfterEach
-    void tearDown(){
-        driver.quit();
-        given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
-                .pathParam("id",id)
-                .log().all()
-                .when()
-                .delete("/goods/{id}")
-                .then()
-                .log().all();
     }
 }

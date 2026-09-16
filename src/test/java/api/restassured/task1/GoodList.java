@@ -1,14 +1,14 @@
 package api.restassured.task1;
 
 import com.github.javafaker.Faker;
+import config.BaseTest;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static io.restassured.RestAssured.given;
@@ -18,16 +18,15 @@ import static org.hamcrest.Matchers.hasItem;
 
 
 @Tag("api")
-public class GoodList {
-    private Faker faker = new Faker();
-    String productName = faker.commerce().productName();
-    double price = faker.number().randomDouble(2, 0, 1000);
+public class GoodList extends BaseTest {
+    private String name = CONFIG.getStartProductName();
+    private double price = CONFIG.getStartProductPrice();
 
     public record Good(String name, Double price) {
     }
 
     private RequestSpecification baseGetRS = new RequestSpecBuilder()
-            .setBaseUri("http://localhost:8080")
+            .setBaseUri(CONFIG.getApiUrl())
             .addQueryParam("page", 0)
             .addQueryParam("size", 100)
             .build();
@@ -36,7 +35,7 @@ public class GoodList {
     @DisplayName("Метод с использованием инструкций given(), when(), then() ")
     void getGoodsList() {
         given()
-                .baseUri("http://localhost:8080")
+                .baseUri(CONFIG.getApiUrl())
                 .queryParam("page", 0)
                 .queryParam("size", 100)
                 .log().all()
@@ -47,6 +46,7 @@ public class GoodList {
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("goods.size()", equalTo(0));
+
     }
 
     @Test
@@ -68,16 +68,20 @@ public class GoodList {
     @DisplayName("Метод, который будет создавать один товар через эндпоинт POST /goods/add и проверять, " +
             "что GET /goods/list вернул его в списке через встроенные проверки REST Assured.")
     void postGoodsAddAndGetGoodsListTest() {
-        given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+        Response responsePost = given()
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("goods/add")
                 .then()
-                .log().all();
+                .log().all()
+                .extract().response();
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
+
         given()
                 .spec(baseGetRS)
                 .when()
@@ -85,23 +89,26 @@ public class GoodList {
                 .then()
                 .log().all()
                 .statusCode(200)
-                .body("goods.name", hasItem(productName));
+                .body("goods.name", hasItem(name));
     }
 
     @Test
     @DisplayName("Метод, который будет создавать один товар через эндпоинт POST /goods/add и проверять," +
             " что GET /goods/list вернул его в списке через AssertJ.")
     void postGoodsAddAndGetGoodsListAssertionTest() {
-        given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+        Response responsePost = given()
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("goods/add")
                 .then()
-                .log().all();
+                .log().all()
+                .extract().response();
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
         Response response = given()
                 .spec(baseGetRS)
                 .when()
@@ -115,15 +122,13 @@ public class GoodList {
         List<String> listName = response.jsonPath().getList("goods.name");
         boolean result = false;
         for (String name : listName) {
-            if (name != null && name.equals(productName)) {
+            if (name != null && name.equals(name)) {
                 result = true;
                 break;
             }
         }
         assertThat(result)
-                .as("Товар с именем '%s' должен присутствовать в списке", productName)
+                .as("Товар с именем '%s' должен присутствовать в списке", name)
                 .isTrue();
-
-
     }
 }

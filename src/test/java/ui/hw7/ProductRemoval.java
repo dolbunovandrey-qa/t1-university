@@ -3,34 +3,34 @@ package ui.hw7;
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.DragAndDropOptions;
 import com.codeborne.selenide.SelenideElement;
-import com.github.javafaker.Faker;
+import config.BaseTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Locale;
-
 import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.open;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-public class ProductRemoval {
-    private Faker faker = new Faker(Locale.forLanguageTag("ru"));
-    String name = faker.commerce().productName();
-    double price = faker.number().randomDouble(2, 0, 1000);
-    record Good(String name, double price){};
+public class ProductRemoval extends BaseTest {
+    private String name = CONFIG.getStartProductName();
+    private double price = CONFIG.getStartProductPrice();
+    record Good(String name, double price) {};
     int id;
+
     SelenideElement productCard = $("[data-name='"+name + "'");
     SelenideElement basketBtn = $("#open-cart-btn");
     SelenideElement remove = $("[data-action = 'remove']");
+
     @BeforeEach
     void setup(){
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
                 .body(new Good(name, price))
@@ -43,7 +43,8 @@ public class ProductRemoval {
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
         id = responsePost.jsonPath().getInt("data.id");
-        open("http://localhost:8080");
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
+        open("/");
     }
     @Test
     void testDnD(){
@@ -52,17 +53,5 @@ public class ProductRemoval {
         remove.click();
         $("#cart-item-" + id +" b").shouldNotBe(Condition.exist);
         $("#empty-cart").shouldBe(Condition.text("Пусто"));
-    }
-    @AfterEach
-    void tearDown(){
-        given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
-                .pathParam("id",id)
-                .log().all()
-                .when()
-                .delete("/goods/{id}")
-                .then()
-                .log().all();
     }
 }

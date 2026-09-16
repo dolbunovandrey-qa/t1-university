@@ -1,34 +1,38 @@
 package api.restassured.task2;
 
 import com.github.javafaker.Faker;
+import config.BaseTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Tag("api")
-public class GoodsId {
+public class GoodsId extends BaseTest {
+    private String name = CONFIG.getStartProductName();
+    private double price = CONFIG.getStartProductPrice();
     private Faker faker = new Faker();
-    String productName = faker.commerce().productName();
-    double price = faker.number().randomDouble(2, 0, 1000);
     double patchPrice = faker.number().randomDouble(2, 0, 1000);
     String patchProductName =  faker.commerce().productName();
-    public record Good(String name, Double price) {
-    }
+    public record Good(String name, Double price) {}
 
     @Test
     @DisplayName("Успешный просмотр по id")
     void getGoodsListIdSuccess() {
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("/goods/add")
                 .then()
@@ -38,10 +42,11 @@ public class GoodsId {
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
         int id = responsePost.jsonPath().getInt("data.id");
-
+        addForDelete(id);
         Response responseGet = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .pathParam("id",id)
                 .log().all()
                 .when()
@@ -59,11 +64,12 @@ public class GoodsId {
     @DisplayName("404 Not found при просмотре")
     void getGoodsListIdNotFound() {
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("/goods/add")
                 .then()
@@ -73,10 +79,12 @@ public class GoodsId {
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
         int id = responsePost.jsonPath().getInt("data.id")+1;
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
         String expectedMessage = "Good with id '"+id+"' is not found!";
         Response responseGet = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .pathParam("id",id)
                 .log().all()
                 .when()
@@ -95,11 +103,12 @@ public class GoodsId {
     @DisplayName("Успешное изменение")
     void patchGoodsListIdSuccess() {
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("/goods/add")
                 .then()
@@ -109,10 +118,12 @@ public class GoodsId {
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
         int id = responsePost.jsonPath().getInt("data.id");
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
 
         Response responsePatch = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .pathParam("id",id)
                 .contentType(ContentType.JSON)
                 .body(new Good(patchProductName, patchPrice))
@@ -138,11 +149,12 @@ public class GoodsId {
     @DisplayName("404 Not Found при изменении")
     void patchGoodsListIdNotFound() {
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("/goods/add")
                 .then()
@@ -152,10 +164,12 @@ public class GoodsId {
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
         int id = responsePost.jsonPath().getInt("data.id")+1;
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
 
         Response responsePatch = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .pathParam("id",id)
                 .contentType(ContentType.JSON)
                 .body(new Good(patchProductName, patchPrice))
@@ -175,11 +189,12 @@ public class GoodsId {
     @DisplayName("Проверка валидации имени при изменении")
     void patchGoodsListIdBadRequest() {
         Response responsePostFirst = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("/goods/add")
                 .then()
@@ -189,10 +204,12 @@ public class GoodsId {
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
         int id = responsePostFirst.jsonPath().getInt("data.id");
+        addForDelete(responsePostFirst.jsonPath().getInt("data.id"));
 
         Response responsePostSecond = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
                 .body(new Good(patchProductName, patchPrice))
@@ -201,13 +218,15 @@ public class GoodsId {
                 .then()
                 .log().all()
                 .extract().response();
+        addForDelete(responsePostSecond.jsonPath().getInt("data.id"));
         assertThat(responsePostSecond.statusCode())
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
 
         Response responsePatch = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .pathParam("id",id)
                 .contentType(ContentType.JSON)
                 .body(new Good(patchProductName, patchPrice))
@@ -227,11 +246,12 @@ public class GoodsId {
     @DisplayName("Успешное удаление")
     void deleteGoodsListIdSuccess() {
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("/goods/add")
                 .then()
@@ -243,8 +263,9 @@ public class GoodsId {
         int id = responsePost.jsonPath().getInt("data.id");
 
         Response responsePatch = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .pathParam("id",id)
                 .log().all()
                 .when()
@@ -262,11 +283,12 @@ public class GoodsId {
     @DisplayName("404 Not Found при удалении")
     void deleteGoodsListIdNotFound() {
         Response responsePost = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .log().all()
                 .contentType(ContentType.JSON)
-                .body(new Good(productName, price))
+                .body(new Good(name, price))
                 .when()
                 .post("/goods/add")
                 .then()
@@ -276,10 +298,12 @@ public class GoodsId {
                 .as("Статус код должен быть 200")
                 .isEqualTo(200);
         int id = responsePost.jsonPath().getInt("data.id")+1;
+        addForDelete(responsePost.jsonPath().getInt("data.id"));
 
         Response responsePatch = given()
-                .baseUri("http://localhost:8080")
-                .auth().basic("admin", "secret123")
+                .baseUri(CONFIG.getApiUrl())
+                .auth().basic(CONFIG.getAdminUsername(),
+                        CONFIG.getAdminPassword())
                 .pathParam("id",id)
                 .log().all()
                 .when()

@@ -1,0 +1,10 @@
+{
+  "webUrl": "http://localhost:8080",
+  "apiUrl": "http://localhost:8080",
+  "timeout": 5000,
+  "logging": "INFO",
+  "adminUsername": "admin",
+  "adminPassword": "secret123",
+  "startProductName": "Стартовый товар",
+  "startProductPrice": 99.12
+}
