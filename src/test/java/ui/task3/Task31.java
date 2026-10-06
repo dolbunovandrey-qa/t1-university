@@ -1,51 +1,30 @@
 package ui.task3;
 
-import com.codeborne.selenide.Condition;
-import config.BaseTest;
-import io.restassured.http.ContentType;
-import io.restassured.response.Response;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import ui.pageobject.MainPage;
+import java.math.BigDecimal;
 
-import static com.codeborne.selenide.Selenide.*;
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-
-public class Task31 extends BaseTest {
-    private String name = CONFIG.getStartProductName();
-    private double price = CONFIG.getStartProductPrice();
-    record Good(String name, double price){};
-    @BeforeEach
-    void setup(){
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        addForDelete(responsePost.jsonPath().getInt("data.id"));
-        open("/");
-    }
+public class Task31 extends PageObjectTest {
     @Test
-    @DisplayName("3.1. Добавить три единицы товара в корзину и оплатить их " +
-            "(общая стоимость не должна превышать 300 рублей). Проверить уведомление об обработке заказа.")
-    void checkOrderProcessingNotification(){
+    @DisplayName("3.1. Оплатить три единицы товара стоимостью до 300 рублей")
+    void checkOrderProcessingNotification() {
+        String name = uniqueName("Товар для заказа");
+        BigDecimal price = new BigDecimal("99.12");
+        int quantity = 3;
+        int id = createProduct(name, price);
+        BigDecimal total = price.multiply(BigDecimal.valueOf(quantity));
 
-        $("[data-name = '" + name + "'] [type = 'number']").setValue("3");
-        $("[data-action='add-to-cart'][data-name='" + name + "']").click();
-        $("#open-cart-btn").click();
-        $("#makeOrder").click();
-        $x("//*[@id='toast-container']//div[text()='Заказ принят в обработку!']").shouldBe(Condition.visible);
+        MainPage page = new MainPage().open();
+        page.should().isLoaded().productIsVisible(id, name, price).quantityIs(id, 1).cartCountIs(0);
+        page.setQuantity(id, quantity);
+        page.should().quantityIs(id, quantity);
+        page.addToCart(id).openCart();
+        page.should().cartCountIs(quantity).cartIsOpen(1)
+                .cartItemIs(id, name, quantity, total)
+                .totalPriceIs(total).totalPriceDoesNotExceed(new BigDecimal("300"));
+
+        page.placeOrder();
+        page.should().orderIsProcessed();
     }
 }

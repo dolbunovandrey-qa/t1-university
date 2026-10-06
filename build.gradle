@@ -56,3 +56,20 @@ tasks.register('runApiTests', Test) {
     }
 }
 
+tasks.register('runPageObjectTests', Test) {
+    group = 'verification'
+    description = 'Запускает PageObject-сценарии Task31–Task34'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    filter {
+        includeTestsMatching 'ui.task3.Task3*'
+    }
+    systemProperty 'selenide.headless', System.getProperty('selenide.headless', 'true')
+    systemProperty 'selenide.browserSize', '1280x900'
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+        exceptionFormat = 'full'
+    }
+}
+
