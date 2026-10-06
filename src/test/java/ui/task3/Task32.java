@@ -23,7 +23,6 @@ public class Task32 extends PageObjectTest {
         MainPage page = new MainPage().open();
         page.should().isLoaded().productIsVisible(firstId, firstName, firstPrice)
                 .productIsVisible(secondId, secondName, secondPrice).cartCountIs(0);
-        // Проверяем оба способа изменения количества: click и ввод текста.
         page.increaseQuantity(firstId).increaseQuantity(firstId).decreaseQuantity(firstId);
         page.should().quantityIs(firstId, firstQuantity);
         page.setQuantity(secondId, secondQuantity);

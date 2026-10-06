@@ -10,7 +10,6 @@ public class AdminLoginPage {
     final SelenideElement signInButton = $("form[action='/login'] button[type='submit']");
 
     public AdminLoginPage open() {
-        // Переход через /admin сохраняет страницу назначения после авторизации.
         Selenide.open("/admin");
         return this;
     }

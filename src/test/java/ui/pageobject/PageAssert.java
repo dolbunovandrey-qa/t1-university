@@ -19,8 +19,6 @@ public abstract class PageAssert {
 
     protected void hasAmount(SelenideElement element, BigDecimal expected) {
         element.shouldBe(visible);
-        // Стенд выводит арифметику JavaScript без округления. Допуск покрывает
-        // погрешность double, но не скрывает ошибку даже в копейку.
         assertThat(amount(element)).as("Сумма в элементе %s", element)
                 .isCloseTo(expected, within(new BigDecimal("0.000000001")));
     }

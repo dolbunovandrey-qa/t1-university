@@ -10,7 +10,6 @@ public class AdminProductsPageAssert extends PageAssert {
     public AdminProductsPageAssert(AdminProductsPage page) { this.page = page; }
     public AdminProductsPageAssert isLoaded() {
         isVisible(page.newName, page.newPrice, page.addButton, page.catalogLink);
-        // Пустой tbody не имеет видимой области на чистом стенде.
         page.productsTable.shouldBe(exist);
         return this;
     }

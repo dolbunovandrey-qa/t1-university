@@ -45,8 +45,6 @@ abstract class PageObjectTest extends BaseTest {
 
     @AfterEach
     void collectUiCreatedProductsForDeletion() {
-        // Выполняется до @AfterEach из BaseTest. Имя регистрируется до клика:
-        // товар удалится и при падении проверки уведомления.
         for (String name : uiCreatedNames) {
             boolean found = false;
             for (int page = 0; !found; page++) {
