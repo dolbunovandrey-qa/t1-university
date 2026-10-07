@@ -9,6 +9,12 @@ repositories {
     mavenCentral()
 }
 
+def allureVersion = '2.33.0'
+configurations {
+    aspectjAgent
+    allureCli
+}
+
 dependencies {
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -19,6 +25,12 @@ dependencies {
     testImplementation("io.rest-assured:rest-assured:5.5.6")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.2")
+    testImplementation(platform("io.qameta.allure:allure-bom:${allureVersion}"))
+    testImplementation 'io.qameta.allure:allure-junit5'
+    testImplementation 'io.qameta.allure:allure-selenide'
+    testImplementation 'io.qameta.allure:allure-rest-assured'
+    aspectjAgent 'org.aspectj:aspectjweaver:1.9.22.1'
+    allureCli "io.qameta.allure:allure-commandline:${allureVersion}@zip"
 }
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
@@ -71,5 +83,76 @@ tasks.register('runPageObjectTests', Test) {
         events 'passed', 'failed', 'skipped'
         exceptionFormat = 'full'
     }
+}
+
+tasks.register('runUiTests', Test) {
+    group = 'verification'
+    description = 'Запускает все UI-тесты (Selenium, Selenide, PageObject)'
+    useJUnitPlatform { includeTags 'ui' }
+}
+
+tasks.register('runAllureTests', Test) {
+    group = 'verification'
+    description = 'Запускает все UI- и API-тесты для общего Allure-отчёта'
+    useJUnitPlatform { includeTags 'ui', 'api' }
+}
+
+tasks.withType(Test).configureEach {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    maxParallelForks = 1
+    def resultsDirectory = layout.buildDirectory.dir("allure-results/${name}")
+    systemProperty 'allure.results.directory', resultsDirectory.get().asFile.absolutePath
+    systemProperty 'selenide.headless', System.getProperty('selenide.headless', 'true')
+    systemProperty 'selenide.browserSize', '1280x900'
+    systemProperty 'junit.jupiter.execution.parallel.enabled', 'false'
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+        exceptionFormat = 'full'
+    }
+    doFirst {
+        // Каждый запуск имеет собственную папку. Старые результаты этого
+        // запуска очищаются, чтобы отчёт не содержал тесты из прошлых прогонов.
+        delete resultsDirectory
+        jvmArgs "-javaagent:${configurations.aspectjAgent.singleFile.absolutePath}"
+        resultsDirectory.get().asFile.mkdirs()
+        new File(resultsDirectory.get().asFile, 'environment.properties').text =
+                "Java=${System.getProperty('java.version')}\nOS=${System.getProperty('os.name')}\nBrowser=Chrome\nHeadless=${System.getProperty('selenide.headless', 'true')}\nAllure=${allureVersion}\n"
+    }
+}
+
+def allureInstallation = layout.buildDirectory.dir('tools/allure')
+tasks.register('installAllure', Sync) {
+    group = 'reporting'
+    description = 'Распаковывает закреплённую версию Allure CLI в build/tools'
+    from { zipTree(configurations.allureCli.singleFile) }
+    into allureInstallation
+}
+
+tasks.register('allureReport', JavaExec) {
+    group = 'reporting'
+    description = 'Генерирует HTML-отчёт последнего runAllureTests без повторного запуска тестов'
+    dependsOn 'installAllure'
+    mainClass = 'io.qameta.allure.CommandLine'
+    def cliHome = allureInstallation.get().dir("allure-${allureVersion}").asFile
+    classpath = files(fileTree(new File(cliHome, 'lib')) { include '*.jar' }, new File(cliHome, 'lib/config'))
+    environment 'APP_HOME', cliHome.absolutePath
+    def resultTask = providers.gradleProperty('allureResultsTask').getOrElse('runAllureTests')
+    args 'generate', layout.buildDirectory.dir("allure-results/${resultTask}").get().asFile.absolutePath,
+            '--config', new File(cliHome, 'config/allure.yml').absolutePath,
+            '--clean', '--single-file', '--lang', 'ru',
+            '--output', layout.buildDirectory.dir('reports/allure-report').get().asFile.absolutePath
+}
+
+tasks.register('allureReportZip', Zip) {
+    group = 'reporting'
+    description = 'Архивирует HTML-отчёт, исходные результаты и объяснение изменений'
+    dependsOn 'allureReport'
+    archiveFileName = 'allure-report-ui-api.zip'
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    from(layout.buildDirectory.dir('reports/allure-report')) { into 'allure-report' }
+    def resultTask = providers.gradleProperty('allureResultsTask').getOrElse('runAllureTests')
+    from(layout.buildDirectory.dir("allure-results/${resultTask}")) { into 'allure-results' }
+    from('ALLURE-EXPLANATION.md')
 }
 

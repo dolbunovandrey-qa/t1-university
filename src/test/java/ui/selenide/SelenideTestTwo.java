@@ -1,54 +1,24 @@
 package ui.selenide;
 
-import com.codeborne.selenide.CollectionCondition;
-import com.codeborne.selenide.Condition;
-import com.github.javafaker.Faker;
 import config.BaseTest;
-import io.restassured.http.ContentType;
-import io.restassured.response.Response;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import java.util.Locale;
+import ui.pageobject.MainPage;
+import java.math.BigDecimal;
 
-import static com.codeborne.selenide.Selenide.*;
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-
+@Tag("ui")
 public class SelenideTestTwo extends BaseTest {
-    private String name = CONFIG.getStartProductName();
-    private double price = CONFIG.getStartProductPrice();
-    record Good(String name, double price){};
-    @BeforeEach
-    void setup(){
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        addForDelete(responsePost.jsonPath().getInt("data.id"));
-        open("/");
-    }
     @Test
-    @DisplayName("2.2. Добавить товар в корзину и проверить, что он отображается.")
-    void shouldAddProductToCartAndVerifyItIsDisplayedTest(){
-        $("[data-action='add-to-cart'][data-name='" + name + "']").click();
-        $("#toast-container").shouldBe(Condition.visible);
-        $("#cart-count").is(Condition.text("1"));
-        $("#open-cart-btn").click();
-        $$x("//b[text()='" + name + "']")
-                .shouldBe(CollectionCondition.containExactTextsCaseSensitive(name));
-
+    @DisplayName("2.2. Добавить товар в корзину и проверить его наличие")
+    void shouldAddProductToCartAndVerifyItIsDisplayedTest() {
+        String name = uniqueName(CONFIG.getStartProductName());
+        BigDecimal price = BigDecimal.valueOf(CONFIG.getStartProductPrice());
+        int id = createProduct(name, price);
+        MainPage page = new MainPage().open();
+        page.should().isLoaded().productIsVisible(id, name, price);
+        page.addToCart(id);
+        page.should().notificationIs(name + " (1 шт.) добавлен в корзину").cartCountIs(1);
+        page.openCart().should().cartIsOpen(1).cartItemIs(id, name, 1, price).totalPriceIs(price);
     }
 }
