@@ -1,50 +1,26 @@
 package ui.selenide;
 
 import config.BaseTest;
-import io.restassured.http.ContentType;
-import io.restassured.response.Response;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import ui.pageobject.MainPage;
+import java.math.BigDecimal;
 
-import static com.codeborne.selenide.Selenide.*;
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-
+@Tag("ui")
 public class SelenideTestFive extends BaseTest {
-    private String name = CONFIG.getStartProductName();
-    private double price = CONFIG.getStartProductPrice();
-    record Good(String name, double price){};
-    @BeforeEach
-    void setup(){
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        addForDelete(responsePost.jsonPath().getInt("data.id"));
-        open("/");
-    }
     @Test
-    @DisplayName("2.5. Добавить в корзину товаров более чем на 300 рублей и нажать на кнопку «Оформить заказ»." +
-            "Проверить, что отображается JS Alert.")
-    void addProductsOver300RublesAndCheckJsAlert(){
-        $("[data-name = '" + name + "'] [type = 'number']").setValue("4");
-        $("[data-action='add-to-cart'][data-name='" + name + "']").click();
-        $("#open-cart-btn").click();
-        $("#makeOrder").click();
-        boolean contains = switchTo().alert().getText().contains("превышает лимит 300 ₽");
-        assertThat(contains).isTrue();
+    @DisplayName("2.5. Проверить JS Alert при заказе дороже 300 рублей")
+    void addProductsOver300RublesAndCheckJsAlert() {
+        String name = uniqueName(CONFIG.getStartProductName());
+        BigDecimal price = new BigDecimal("99.12");
+        int id = createProduct(name, price);
+        MainPage page = new MainPage().open();
+        page.should().isLoaded().productIsVisible(id, name, price);
+        page.setQuantity(id, 4);
+        page.should().quantityIs(id, 4);
+        page.addToCart(id).openCart();
+        page.should().cartIsOpen(1).totalPriceIs(price.multiply(BigDecimal.valueOf(4)));
+        page.placeOrder().should().orderLimitAlertIsShown();
     }
 }

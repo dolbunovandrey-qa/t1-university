@@ -1,320 +1,87 @@
 package api.restassured.task2;
 
-import com.github.javafaker.Faker;
+import api.assertions.GoodsAssert;
 import config.BaseTest;
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
+import java.math.BigDecimal;
 
 @Tag("api")
 public class GoodsId extends BaseTest {
-    private String name = CONFIG.getStartProductName();
-    private double price = CONFIG.getStartProductPrice();
-    private Faker faker = new Faker();
-    double patchPrice = faker.number().randomDouble(2, 0, 1000);
-    String patchProductName =  faker.commerce().productName();
-    public record Good(String name, Double price) {}
-
     @Test
-    @DisplayName("Успешный просмотр по id")
+    @DisplayName("Успешный просмотр товара по ID")
     void getGoodsListIdSuccess() {
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        int id = responsePost.jsonPath().getInt("data.id");
-        addForDelete(id);
-        Response responseGet = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .pathParam("id",id)
-                .log().all()
-                .when()
-                .get("/goods/{id}")
-                .then()
-                .log().all().extract().response();
-        assertThat(responseGet.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        assertThat(responseGet.jsonPath().getInt("id"))
-                .as("Id не соответствует запрашиваемому")
-                .isEqualTo(id);
+        String name = uniqueName(CONFIG.getStartProductName());
+        BigDecimal price = BigDecimal.valueOf(CONFIG.getStartProductPrice());
+        int id = createProduct(name, price);
+        GoodsAssert.productIs(goods.get(id), id, name, price);
     }
+
     @Test
-    @DisplayName("404 Not found при просмотре")
+    @DisplayName("404 при просмотре отсутствующего товара")
     void getGoodsListIdNotFound() {
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        int id = responsePost.jsonPath().getInt("data.id")+1;
-        addForDelete(responsePost.jsonPath().getInt("data.id"));
-        String expectedMessage = "Good with id '"+id+"' is not found!";
-        Response responseGet = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .pathParam("id",id)
-                .log().all()
-                .when()
-                .get("/goods/{id}")
-                .then()
-                .log().all().extract().response();
-        assertThat(responseGet.statusCode())
-                .as("Статус код должен быть 404")
-                .isEqualTo(404);
-        assertThat(responseGet.jsonPath().getString("message"))
-                .as("Ошибка в тексте сообщения")
-                .isEqualTo(expectedMessage);
+        int id = createAbsentProductId();
+        Response response = goods.get(id);
+        GoodsAssert.statusIs(response, 404);
+        GoodsAssert.messageIs(response, "Good with id '" + id + "' is not found!");
     }
 
     @Test
-    @DisplayName("Успешное изменение")
+    @DisplayName("Успешное изменение названия и цены товара")
     void patchGoodsListIdSuccess() {
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        int id = responsePost.jsonPath().getInt("data.id");
-        addForDelete(responsePost.jsonPath().getInt("data.id"));
-
-        Response responsePatch = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .pathParam("id",id)
-                .contentType(ContentType.JSON)
-                .body(new Good(patchProductName, patchPrice))
-                .log().all()
-                .when()
-                .patch("/goods/{id}")
-                .then()
-                .log().all().extract().response();
-        assertThat(responsePatch.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        assertThat(responsePatch.jsonPath().getInt("id"))
-                .as("Id не соответствует запрашиваемому")
-                .isEqualTo(id);
-        assertThat(responsePatch.jsonPath().getString("name"))
-                .as("Имя не соответствует ОР")
-                .isEqualTo(patchProductName);
-        assertThat(responsePatch.jsonPath().getDouble("price"))
-                .as("Имя не соответствует ОР")
-                .isEqualTo(patchPrice);
+        int id = createProduct(uniqueName("Исходный товар"), new BigDecimal("99.12"));
+        String updatedName = uniqueName("Изменённый товар");
+        BigDecimal updatedPrice = new BigDecimal("89.45");
+        GoodsAssert.productIs(goods.update(id, updatedName, updatedPrice), id, updatedName, updatedPrice);
+        GoodsAssert.productIs(goods.get(id), id, updatedName, updatedPrice);
     }
+
     @Test
-    @DisplayName("404 Not Found при изменении")
+    @DisplayName("404 при изменении отсутствующего товара")
     void patchGoodsListIdNotFound() {
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        int id = responsePost.jsonPath().getInt("data.id")+1;
-        addForDelete(responsePost.jsonPath().getInt("data.id"));
-
-        Response responsePatch = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .pathParam("id",id)
-                .contentType(ContentType.JSON)
-                .body(new Good(patchProductName, patchPrice))
-                .log().all()
-                .when()
-                .patch("/goods/{id}")
-                .then()
-                .log().all().extract().response();
-        assertThat(responsePatch.statusCode())
-                .as("Статус код должен быть 404")
-                .isEqualTo(404);
-        assertThat(responsePatch.body().asString())
-                .as("Ошибка в тексте сообщения")
-                .isEqualTo("Good with id '"+id+"' is not found");
+        int id = createAbsentProductId();
+        Response response = goods.update(id, uniqueName("Изменённый товар"), new BigDecimal("89.45"));
+        GoodsAssert.statusIs(response, 404);
+        GoodsAssert.bodyIs(response, "Good with id '" + id + "' is not found");
     }
+
     @Test
-    @DisplayName("Проверка валидации имени при изменении")
+    @DisplayName("Проверка уникальности имени при изменении")
     void patchGoodsListIdBadRequest() {
-        Response responsePostFirst = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePostFirst.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        int id = responsePostFirst.jsonPath().getInt("data.id");
-        addForDelete(responsePostFirst.jsonPath().getInt("data.id"));
-
-        Response responsePostSecond = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(patchProductName, patchPrice))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        addForDelete(responsePostSecond.jsonPath().getInt("data.id"));
-        assertThat(responsePostSecond.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-
-        Response responsePatch = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .pathParam("id",id)
-                .contentType(ContentType.JSON)
-                .body(new Good(patchProductName, patchPrice))
-                .log().all()
-                .when()
-                .patch("/goods/{id}")
-                .then()
-                .log().all().extract().response();
-        assertThat(responsePatch.statusCode())
-                .as("Статус код должен быть 400")
-                .isEqualTo(400);
-        assertThat(responsePatch.body().asString())
-                .as("Сообщение не соответствует ОР")
-                .isEqualTo("Good with name '" + patchProductName + "' already exists!");
+        BigDecimal price = new BigDecimal("99.12");
+        int firstId = createProduct(uniqueName("Первый товар"), price);
+        String secondName = uniqueName("Второй товар");
+        createProduct(secondName, price);
+        Response response = goods.update(firstId, secondName, price);
+        GoodsAssert.statusIs(response, 400);
+        GoodsAssert.bodyIs(response, "Good with name '" + secondName + "' already exists!");
     }
+
     @Test
-    @DisplayName("Успешное удаление")
+    @DisplayName("Успешное удаление товара")
     void deleteGoodsListIdSuccess() {
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        int id = responsePost.jsonPath().getInt("data.id");
-
-        Response responsePatch = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .pathParam("id",id)
-                .log().all()
-                .when()
-                .delete("/goods/{id}")
-                .then()
-                .log().all().extract().response();
-        assertThat(responsePatch.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        assertThat(responsePatch.body().asString())
-                .as("Ошибка в тексте сообщения")
-                .isEqualTo("Good with id '"+id+"' has been deleted successfully!");
+        int id = createProduct(uniqueName("Товар для удаления"), new BigDecimal("99.12"));
+        Response response = goods.delete(id);
+        GoodsAssert.statusIs(response, 200);
+        GoodsAssert.bodyIs(response, "Good with id '" + id + "' has been deleted successfully!");
+        GoodsAssert.statusIs(goods.get(id), 404);
     }
-    @Test
-    @DisplayName("404 Not Found при удалении")
-    void deleteGoodsListIdNotFound() {
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        int id = responsePost.jsonPath().getInt("data.id")+1;
-        addForDelete(responsePost.jsonPath().getInt("data.id"));
 
-        Response responsePatch = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(),
-                        CONFIG.getAdminPassword())
-                .pathParam("id",id)
-                .log().all()
-                .when()
-                .delete("/goods/{id}")
-                .then()
-                .log().all().extract().response();
-        assertThat(responsePatch.statusCode())
-                .as("Статус код должен быть 404")
-                .isEqualTo(404);
-        assertThat(responsePatch.body().asString())
-                .as("Ошибка в тексте сообщения")
-                .isEqualTo("Good with id '"+id+"' is not found");
+    @Test
+    @DisplayName("404 при удалении отсутствующего товара")
+    void deleteGoodsListIdNotFound() {
+        int id = createAbsentProductId();
+        Response response = goods.delete(id);
+        GoodsAssert.statusIs(response, 404);
+        GoodsAssert.bodyIs(response, "Good with id '" + id + "' is not found");
+    }
+
+    @io.qameta.allure.Step("Подготовить ID гарантированно отсутствующего товара")
+    private int createAbsentProductId() {
+        int id = createProduct(uniqueName("Удаляемый товар"), new BigDecimal("99.12"));
+        GoodsAssert.statusIs(goods.delete(id), 200);
+        return id;
     }
 }

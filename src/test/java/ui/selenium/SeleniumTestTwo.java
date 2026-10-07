@@ -1,61 +1,21 @@
 package ui.selenium;
 
-import config.BaseTest;
-import io.restassured.http.ContentType;
-import io.restassured.response.Response;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
+import ui.pageobject.SeleniumShopPage;
+import java.math.BigDecimal;
 
-import java.util.List;
-
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-
-public class SeleniumTestTwo extends BaseTest {
-    private String name = CONFIG.getStartProductName();
-    private double price = CONFIG.getStartProductPrice();
-    record Good(String name, double price){};
-    @BeforeEach
-    void setup(){
-        Response responsePost = given()
-                .baseUri(CONFIG.getApiUrl())
-                .auth().basic(CONFIG.getAdminUsername(), CONFIG.getAdminPassword())
-                .log().all()
-                .contentType(ContentType.JSON)
-                .body(new Good(name, price))
-                .when()
-                .post("/goods/add")
-                .then()
-                .log().all()
-                .extract().response();
-        assertThat(responsePost.statusCode())
-                .as("Статус код должен быть 200")
-                .isEqualTo(200);
-        addForDelete(responsePost.jsonPath().getInt("data.id"));
-        driver = new ChromeDriver();
-        driver.get(CONFIG.getWebUrl());
-    }
+public class SeleniumTestTwo extends SeleniumUiTest {
     @Test
-    @DisplayName("Добавить товар в корзину и проверить, что он отображается.")
-    void shouldAddProductToCartAndVerifyItIsDisplayed(){
-        driver.findElement(By.cssSelector("[data-action='add-to-cart'][data-name='" + name + "']")).click();
-        List<WebElement> toast = driver.findElements(By.cssSelector("[datatest='notification-container']"));
-        assertThat(toast)
-                .as("Должен появится тост")
-                .isNotEmpty();
-        assertThat(driver.findElement(By.id("cart-count")).getText())
-                .as("Значение каунтера не должно быть равно 0")
-                .isNotEqualTo("0");
-        driver.findElement(By.id("open-cart-btn")).click();
-
-        List<WebElement> elements = driver.findElements(By.xpath("//b[text()='" + name + "']"));
-        assertThat(elements)
-                .as("нет товара с именем "+ name)
-                .isNotEmpty();
-
+    @DisplayName("Selenium: добавить товар в корзину и проверить его наличие")
+    void shouldAddProductToCartAndVerifyItIsDisplayed() {
+        String name = uniqueName(CONFIG.getStartProductName());
+        BigDecimal price = BigDecimal.valueOf(CONFIG.getStartProductPrice());
+        int id = createProduct(name, price);
+        SeleniumShopPage page = openShop();
+        page.should().productIsVisible(id, name, price);
+        page.addToCart(id);
+        page.should().notificationIs(name + " (1 шт.) добавлен в корзину").cartCountIs(1);
+        page.openCart().should().cartItemIs(id, name);
     }
 }

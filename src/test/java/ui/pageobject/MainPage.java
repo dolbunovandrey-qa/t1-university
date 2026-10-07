@@ -1,5 +1,7 @@
 package ui.pageobject;
 
+import io.qameta.allure.Step;
+
 import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
@@ -22,6 +24,7 @@ public class MainPage {
     final SelenideElement orderButton = $("#makeOrder");
     final ElementsCollection notifications = $$("#toast-container .toast");
 
+    @Step("Открыть страницу")
     public MainPage open() {
         Selenide.open("/");
         return this;
@@ -35,16 +38,39 @@ public class MainPage {
     }
     SelenideElement cartItem(int productId) { return cartItems.findBy(id("cart-item-" + productId)); }
 
+    @Step("Установить количество товара #{id}: {count}")
     public MainPage setQuantity(int id, int count) {
         quantity(id).setValue(Integer.toString(count));
         return this;
     }
+    @Step("Увеличить количество товара #{id}")
     public MainPage increaseQuantity(int id) { quantityButton(id, 1).click(); return this; }
+    @Step("Уменьшить количество товара #{id}")
     public MainPage decreaseQuantity(int id) { quantityButton(id, -1).click(); return this; }
+    @Step("Добавить товар #{id} в корзину")
     public MainPage addToCart(int id) { addButton(id).click(); return this; }
+    @Step("Открыть корзину")
     public MainPage openCart() { openCartButton.click(); return this; }
+    @Step("Закрыть корзину")
     public MainPage closeCart() { closeCartButton.click(); return this; }
+    @Step("Оформить заказ")
     public MainPage placeOrder() { orderButton.click(); return this; }
+    @io.qameta.allure.Step("Обновить страницу каталога")
+    public MainPage refresh() {
+        Selenide.refresh();
+        return this;
+    }
+    @io.qameta.allure.Step("Перетащить товар #{id} на кнопку корзины")
+    public MainPage dragToCart(int id) {
+        product(id).dragAndDrop(com.codeborne.selenide.DragAndDropOptions.to(openCartButton).usingJS());
+        return this;
+    }
+    @io.qameta.allure.Step("Удалить товар #{id} из корзины")
+    public MainPage removeFromCart(int id) {
+        cartItem(id).$("[data-action='remove']").click();
+        return this;
+    }
+    @Step("Перейти к авторизации в админке")
     public AdminLoginPage openAdmin() {
         adminLink.click();
         return new AdminLoginPage();

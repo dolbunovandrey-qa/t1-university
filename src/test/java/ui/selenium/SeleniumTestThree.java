@@ -1,30 +1,16 @@
 package ui.selenium;
 
-import config.BaseTest;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.By;
-import org.openqa.selenium.chrome.ChromeDriver;
+import ui.pageobject.SeleniumShopPage;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-public class SeleniumTestThree extends BaseTest {
-    @BeforeEach
-    void setup(){
-        driver = new ChromeDriver();
-        driver.get(CONFIG.getWebUrl());
-    }
+public class SeleniumTestThree extends SeleniumUiTest {
     @Test
-    @DisplayName("Попытаться войти в админку с неверным логином и паролем.")
-    void testLoginWithWrongCredentials(){
-        String expectedResult = "Неверные учетные данные пользователя";
-        driver.findElement(By.cssSelector("[href='/admin']")).click();
-        driver.findElement(By.id("username")).sendKeys("admins");
-        driver.findElement(By.id("password")).sendKeys(CONFIG.getAdminPassword());
-        driver.findElement(By.cssSelector("[type=submit]")).click();
-        assertThat(driver.findElement(By.cssSelector("[role='alert']")).getText())
-                .as("неверный текст при ошибке")
-                .isEqualTo(expectedResult);
+    @DisplayName("Selenium: отказать во входе с неверным логином")
+    void testLoginWithWrongCredentials() {
+        SeleniumShopPage page = openShop().openAdmin();
+        page.should().loginIsLoaded();
+        page.enterUsername("admins").enterPassword(CONFIG.getAdminPassword());
+        page.signIn().should().credentialsAreRejected();
     }
 }
