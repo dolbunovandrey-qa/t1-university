@@ -1,0 +1,12 @@
+dependencies {
+    api project(':common')
+    api "io.rest-assured:rest-assured:${restAssuredVersion}"
+    implementation 'io.qameta.allure:allure-rest-assured'
+    implementation "org.assertj:assertj-core:${assertjVersion}"
+}
+
+tasks.register('smoke', Test) {
+    description = 'Smoke-проверки всех эндпоинтов API'
+    group = 'verification'
+    useJUnitPlatform { includeTags 'smoke' }
+}

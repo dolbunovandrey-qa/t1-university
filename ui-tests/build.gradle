@@ -1,0 +1,21 @@
+dependencies {
+    implementation project(':common')
+    implementation project(':api-tests')
+    implementation "com.codeborne:selenide:${selenideVersion}"
+    implementation 'io.qameta.allure:allure-selenide'
+    implementation "org.assertj:assertj-core:${assertjVersion}"
+}
+
+tasks.register('smoke', Test) {
+    description = 'Smoke-проверки основных сценариев магазина'
+    group = 'verification'
+    useJUnitPlatform { includeTags 'smoke' }
+}
+
+tasks.register('pageObjectTests', Test) {
+    group = 'verification'
+    filter { includeTestsMatching 'ui.task3.Task3*' }
+}
+
+tasks.named('test') { mustRunAfter ':api-tests:test' }
+tasks.named('smoke') { mustRunAfter ':api-tests:smoke' }

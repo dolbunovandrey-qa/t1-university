@@ -1,144 +1,91 @@
-plugins {
-    id 'java-library'
+plugins { id 'base' }
+
+allprojects {
+    group = 'dolbunov.andrey.qa'
+    version = '1.0-SNAPSHOT'
+    repositories { mavenCentral() }
 }
 
-group = 'dolbunov.andrey.qa'
-version = '1.0-SNAPSHOT'
+subprojects {
+    apply plugin: 'java-library'
 
-repositories {
-    mavenCentral()
-}
+    configurations { aspectjAgent }
+    dependencies {
+        api platform("io.qameta.allure:allure-bom:${allureVersion}")
+        testImplementation platform("org.junit:junit-bom:${junitVersion}")
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        testImplementation 'io.qameta.allure:allure-junit5'
+        aspectjAgent "org.aspectj:aspectjweaver:${aspectjVersion}"
+    }
 
-def allureVersion = '2.33.0'
-configurations {
-    aspectjAgent
-    allureCli
-}
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs += '-parameters'
+        options.release = 17
+    }
 
-dependencies {
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("org.junit.platform:junit-platform-launcher")
-    testImplementation("com.codeborne:selenide:7.16.2")
-    testImplementation("org.apache.commons:commons-lang3:3.20.0")
-    testImplementation("com.github.javafaker:javafaker:1.0.2")
-    testImplementation("io.rest-assured:rest-assured:5.5.6")
-    testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.2")
-    testImplementation(platform("io.qameta.allure:allure-bom:${allureVersion}"))
-    testImplementation 'io.qameta.allure:allure-junit5'
-    testImplementation 'io.qameta.allure:allure-selenide'
-    testImplementation 'io.qameta.allure:allure-rest-assured'
-    aspectjAgent 'org.aspectj:aspectjweaver:1.9.22.1'
-    allureCli "io.qameta.allure:allure-commandline:${allureVersion}@zip"
-}
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-}
-test {
-    useJUnitPlatform()
-    testLogging {
-        events 'passed', 'failed', 'skipped'
-        showStandardStreams = true
-        exceptionFormat = 'full'
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        testClassesDirs = sourceSets.test.output.classesDirs
+        classpath = sourceSets.test.runtimeClasspath
+        maxParallelForks = 1
+        // Состояние внешнего стенда меняется независимо от исходников тестов.
+        if (project.name != 'common') outputs.upToDateWhen { false }
+        def resultsDirectory = layout.buildDirectory.dir("allure-results/${name}")
+        systemProperty 'allure.results.directory', resultsDirectory.get().asFile.absolutePath
+        // Можно передать свой JSON-конфиг и разовые настройки из командной строки.
+        ['config.file', 'apiUrl', 'webUrl', 'headless', 'browser', 'timeout'].each { key ->
+            if (System.getProperty(key) != null) systemProperty key, System.getProperty(key)
+        }
+        testLogging {
+            events 'passed', 'failed', 'skipped'
+            exceptionFormat = 'full'
+        }
+        doFirst {
+            delete resultsDirectory
+            resultsDirectory.get().asFile.mkdirs()
+            jvmArgs "-javaagent:${configurations.aspectjAgent.singleFile.absolutePath}"
+            new File(resultsDirectory.get().asFile, 'environment.properties').text =
+                    "Java=${System.getProperty('java.version')}\nOS=${System.getProperty('os.name')}\nModule=${project.name}\n"
+        }
     }
 }
 
-tasks.register('message') {
-    group = 'verification'
-    description = 'Выводит сообщение после запуска тестов'
-    dependsOn test
+tasks.register('test') { dependsOn subprojects.collect { it.path + ':test' } }
+tasks.register('testClasses') { dependsOn subprojects.collect { it.path + ':testClasses' } }
+tasks.named('check') { dependsOn subprojects.collect { it.path + ':check' } }
+tasks.named('clean') { dependsOn subprojects.collect { it.path + ':clean' } }
+tasks.named('assemble') { dependsOn subprojects.collect { it.path + ':assemble' } }
+tasks.register('runApiTests') { group = 'verification'; dependsOn ':api-tests:test' }
+tasks.register('runUiTests') { group = 'verification'; dependsOn ':ui-tests:test' }
+tasks.register('runPageObjectTests') { group = 'verification'; dependsOn ':ui-tests:pageObjectTests' }
+tasks.register('runAllureTests') { group = 'verification'; dependsOn 'runApiTests', 'runUiTests' }
+tasks.register('runApiSmoke') { group = 'verification'; dependsOn ':api-tests:smoke' }
+tasks.register('runUiSmoke') { group = 'verification'; dependsOn ':ui-tests:smoke' }
+tasks.register('smoke') { group = 'verification'; dependsOn 'runApiSmoke', 'runUiSmoke' }
 
-    doLast {
-        println 'Test run is over'
-    }
-}
-
-tasks.register('runApiTests', Test) {
-    group = 'verification'
-    description = 'Запускает все API-тесты'
-    useJUnitPlatform {
-        includeTags 'api'
-    }
-
-    testLogging {
-        events 'passed', 'failed', 'skipped'
-        showStandardStreams = true
-        exceptionFormat = 'full'
-    }
-}
-
-tasks.register('runPageObjectTests', Test) {
-    group = 'verification'
-    description = 'Запускает PageObject-сценарии Task31–Task34'
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform()
-    filter {
-        includeTestsMatching 'ui.task3.Task3*'
-    }
-    systemProperty 'selenide.headless', System.getProperty('selenide.headless', 'true')
-    systemProperty 'selenide.browserSize', '1280x900'
-    testLogging {
-        events 'passed', 'failed', 'skipped'
-        exceptionFormat = 'full'
-    }
-}
-
-tasks.register('runUiTests', Test) {
-    group = 'verification'
-    description = 'Запускает все UI-тесты (Selenium, Selenide, PageObject)'
-    useJUnitPlatform { includeTags 'ui' }
-}
-
-tasks.register('runAllureTests', Test) {
-    group = 'verification'
-    description = 'Запускает все UI- и API-тесты для общего Allure-отчёта'
-    useJUnitPlatform { includeTags 'ui', 'api' }
-}
-
-tasks.withType(Test).configureEach {
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-    maxParallelForks = 1
-    def resultsDirectory = layout.buildDirectory.dir("allure-results/${name}")
-    systemProperty 'allure.results.directory', resultsDirectory.get().asFile.absolutePath
-    systemProperty 'selenide.headless', System.getProperty('selenide.headless', 'true')
-    systemProperty 'selenide.browserSize', '1280x900'
-    systemProperty 'junit.jupiter.execution.parallel.enabled', 'false'
-    testLogging {
-        events 'passed', 'failed', 'skipped'
-        exceptionFormat = 'full'
-    }
-    doFirst {
-        // Каждый запуск имеет собственную папку. Старые результаты этого
-        // запуска очищаются, чтобы отчёт не содержал тесты из прошлых прогонов.
-        delete resultsDirectory
-        jvmArgs "-javaagent:${configurations.aspectjAgent.singleFile.absolutePath}"
-        resultsDirectory.get().asFile.mkdirs()
-        new File(resultsDirectory.get().asFile, 'environment.properties').text =
-                "Java=${System.getProperty('java.version')}\nOS=${System.getProperty('os.name')}\nBrowser=Chrome\nHeadless=${System.getProperty('selenide.headless', 'true')}\nAllure=${allureVersion}\n"
-    }
-}
-
+configurations { allureCli }
+dependencies { allureCli "io.qameta.allure:allure-commandline:${allureVersion}@zip" }
 def allureInstallation = layout.buildDirectory.dir('tools/allure')
+def resultTask = providers.gradleProperty('allureResultsTask').getOrElse('test')
+def apiResults = project(':api-tests').layout.buildDirectory.dir("allure-results/${resultTask}")
+def uiResults = project(':ui-tests').layout.buildDirectory.dir("allure-results/${resultTask}")
+
 tasks.register('installAllure', Sync) {
-    group = 'reporting'
-    description = 'Распаковывает закреплённую версию Allure CLI в build/tools'
     from { zipTree(configurations.allureCli.singleFile) }
     into allureInstallation
 }
 
 tasks.register('allureReport', JavaExec) {
     group = 'reporting'
-    description = 'Генерирует HTML-отчёт последнего runAllureTests без повторного запуска тестов'
+    description = 'Общий Allure-отчёт из результатов двух тестовых модулей'
     dependsOn 'installAllure'
     mainClass = 'io.qameta.allure.CommandLine'
     def cliHome = allureInstallation.get().dir("allure-${allureVersion}").asFile
     classpath = files(fileTree(new File(cliHome, 'lib')) { include '*.jar' }, new File(cliHome, 'lib/config'))
     environment 'APP_HOME', cliHome.absolutePath
-    def resultTask = providers.gradleProperty('allureResultsTask').getOrElse('runAllureTests')
-    args 'generate', layout.buildDirectory.dir("allure-results/${resultTask}").get().asFile.absolutePath,
+    args 'generate', apiResults.get().asFile.absolutePath, uiResults.get().asFile.absolutePath,
             '--config', new File(cliHome, 'config/allure.yml').absolutePath,
             '--clean', '--single-file', '--lang', 'ru',
             '--output', layout.buildDirectory.dir('reports/allure-report').get().asFile.absolutePath
@@ -146,13 +93,11 @@ tasks.register('allureReport', JavaExec) {
 
 tasks.register('allureReportZip', Zip) {
     group = 'reporting'
-    description = 'Архивирует HTML-отчёт, исходные результаты и объяснение изменений'
     dependsOn 'allureReport'
     archiveFileName = 'allure-report-ui-api.zip'
     destinationDirectory = layout.buildDirectory.dir('distributions')
     from(layout.buildDirectory.dir('reports/allure-report')) { into 'allure-report' }
-    def resultTask = providers.gradleProperty('allureResultsTask').getOrElse('runAllureTests')
-    from(layout.buildDirectory.dir("allure-results/${resultTask}")) { into 'allure-results' }
-    from('ALLURE-EXPLANATION.md')
+    from(apiResults) { into 'allure-results/api' }
+    from(uiResults) { into 'allure-results/ui' }
+    from('ARCHITECTURE.md')
 }
-
